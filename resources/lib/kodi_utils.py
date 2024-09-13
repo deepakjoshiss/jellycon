@@ -38,6 +38,7 @@ class HomeWindow:
 
 
 def add_menu_directory_item(label, path, folder=True, art=None, properties=None):
+    log.debug(">>>>>> adding path {0}".format(path))
     li = xbmcgui.ListItem(label, path=path, offscreen=True)
     if art is None:
         art = {}

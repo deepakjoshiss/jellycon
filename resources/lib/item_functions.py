@@ -35,6 +35,7 @@ class ItemDetails:
     track_number = 0
     series_id = None
     art = None
+    parent_id = None
 
     mpaa = ""
     rating = None
@@ -99,6 +100,7 @@ def extract_item_info(item, gui_options):
     item_details.name = item.get("Name")
     item_details.sort_name = item.get("SortName")
     item_details.original_title = item_details.name
+    item_details.parent_id = item.get("ParentId")
 
     if item_details.item_type == "Episode":
         item_details.episode_number = item.get("IndexNumber")
@@ -629,6 +631,12 @@ def add_gui_item(url, item_details, display_options, folder=True, default_sort=F
             item_properties["NumEpisodes"] = str(item_details.number_episodes)
 
             video_tag.setRating(item_details.community_rating, 0, "imdb", True)
+            log.debug(">>>>>>>> Item details adding ratings %s %s" % (item_details.community_rating, item_details.critic_rating))
+
+            list_item.setRating("imdb", item_details.community_rating, 0, True)
+            if(item_details.critic_rating > 0.0): 
+                item_properties["RottenTomatoes_Rating"] = item_details.critic_rating
+            item_properties["TotalTime"] = str(item_details.duration)
 
         else:
             # Non video, must be music related
@@ -736,7 +744,7 @@ def add_gui_item(url, item_details, display_options, folder=True, default_sort=F
 
 
 def get_art(item, server):
-
+    # log.debug(">>>>>> getting art {0}".format(item["Type"]))
     art = {
         'thumb': '',
         'fanart': '',
@@ -810,9 +818,16 @@ def get_art(item, server):
         art['clearlogo'] = get_art_url(item, "Logo", server=server)
         art['clearart'] = get_art_url(item, "Art", server=server)
         art['discart'] = get_art_url(item, "Disc", server=server)
+    elif item_type == "MusicVideo":
+        # log.debug(">>>>>> getting mart {0}".format(item["Type"]))
+        art['poster'] = get_art_url(item, "Primary", server=server)
+        art['landscape'] = art['poster']
+        art['fanart'] = art['poster']
 
-    art['fanart'] = get_art_url(item, "Backdrop", server=server)
     if not art['fanart']:
+        art['fanart'] = get_art_url(item, "Backdrop", server=server)
+    if not art['fanart']:
+        # log.debug(">>>>>> getting fanart {0}".format(item["Type"]))
         art['fanart'] = get_art_url(item, "Backdrop", parent=True, server=server)
 
     return art
