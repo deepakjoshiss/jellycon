@@ -598,6 +598,9 @@ def display_menu(params):
         display_library_view(params)
     elif menu_type == "show_global_types":
         show_global_types(params)
+    elif menu_type == "global_list_library":
+        params['view_mode'] = '1'
+        display_library_views(params)
     elif menu_type == "global_list_movies":
         display_movies_type(params, None)
     elif menu_type == "global_list_tvshows":
@@ -614,6 +617,7 @@ def display_menu(params):
 
 def show_global_types(params):
     handle = int(sys.argv[1])
+    xbmcplugin.setContent(handle, 'sets')
 
     continue_watching_url_params = {
         "Fields": get_default_filters(),
@@ -624,7 +628,8 @@ def show_global_types(params):
                             "plugin://plugin.video.jellycon/?mode=GET_CONTENT&url=" + quote(continue_watching_url) +
                             "&media_type=movies" +
                             "&name_format="+quote("Episode|episode_name_format"))
-
+    add_menu_directory_item(translate_string(30406),
+                            "plugin://plugin.video.jellycon/?mode=SHOW_ADDON_MENU&type=global_list_library")
     add_menu_directory_item(translate_string(30256),
                             "plugin://plugin.video.jellycon/?mode=SHOW_ADDON_MENU&type=global_list_movies")
     add_menu_directory_item(translate_string(30261),
@@ -638,6 +643,7 @@ def display_homevideos_type(menu_params, view):
     view_name = view.get("Name")
     item_limit = settings.getSetting("show_x_filtered_items")
     hide_watched = settings.getSetting("hide_watched") == "true"
+    xbmcplugin.setContent(handle, 'sets')
 
     # All Home Movies
     base_params = {
@@ -679,6 +685,8 @@ def display_homevideos_type(menu_params, view):
 
 
 def display_addon_menu(params):
+    handle = int(sys.argv[1])
+    xbmcplugin.setContent(handle, 'addons')
 
     add_menu_directory_item(translate_string(30246), "plugin://plugin.video.jellycon/?mode=SEARCH")
     add_menu_directory_item(translate_string(30017), "plugin://plugin.video.jellycon/?mode=SHOW_SERVER_SESSIONS")
@@ -690,12 +698,12 @@ def display_addon_menu(params):
     add_menu_directory_item(translate_string(30293), "plugin://plugin.video.jellycon/?mode=CACHE_ARTWORK")
     add_menu_directory_item("Clone default skin", "plugin://plugin.video.jellycon/?mode=CLONE_SKIN")
 
-    handle = int(sys.argv[1])
     xbmcplugin.endOfDirectory(handle)
 
 
 def display_tvshow_type(menu_params, view):
     handle = int(sys.argv[1])
+    xbmcplugin.setContent(handle, 'sets')
 
     view_name = translate_string(30261)
     if view is not None:
@@ -715,7 +723,7 @@ def display_tvshow_type(menu_params, view):
         base_params["ParentId"] = view.get("Id")
     path = get_jellyfin_url("/Users/{userid}/Items", base_params)
 
-    if settings.getSetting("interface_mode") == "1":
+    if settings.getSetting("interface_mode") == "1" or menu_params.get("view_mode" , "0") == "1":
         get_content(path, { "media_type": "tvshows" })
         return
 
@@ -807,6 +815,7 @@ def display_tvshow_type(menu_params, view):
 def display_music_type(menu_params, view):
     handle = int(sys.argv[1])
     view_name = view.get("Name")
+    xbmcplugin.setContent(handle, 'sets')
 
     item_limit = settings.getSetting("show_x_filtered_items")
 
@@ -819,7 +828,7 @@ def display_music_type(menu_params, view):
     }
     path = get_jellyfin_url("/Users/{userid}/Items", params)
 
-    if settings.getSetting("interface_mode") == "1":
+    if settings.getSetting("interface_mode") == "1" or menu_params.get("view_mode" , "0") == "1":
         get_content(path, { "media_type": "MusicAlbums" })
         return
 
@@ -900,23 +909,55 @@ def display_music_type(menu_params, view):
     xbmcplugin.endOfDirectory(handle)
 
 
-def display_musicvideos_type(params, view):
+def display_musicvideos_type(menu_params, view):
     handle = int(sys.argv[1])
-    xbmcplugin.setContent(handle, 'files')
+    xbmcplugin.setContent(handle, 'sets')
 
     view_name = view.get("Name")
+    item_limit = settings.getSetting("show_x_filtered_items")
+    hide_watched = settings.getSetting("hide_watched") == "false"
 
     # artists
-    params = {
+    base_params = {
         "ParentId": view.get("Id"),
         "Recursive": False,
         "ImageTypeLimit": 1,
         "IsMissing": False,
         "Fields": get_default_filters()
     }
-    path = get_jellyfin_url("/Users/{userid}/Items", params)
+    path = get_jellyfin_url("/Users/{userid}/Items", base_params)
+
+    if settings.getSetting("interface_mode") == "1" or menu_params.get("view_mode" , "0") == "1":
+        get_content(path, { "media_type": "musicvideos" })
+        return
+    
     url = sys.argv[0] + "?url=" + quote(path) + "&mode=GET_CONTENT&media_type=musicvideos"
     add_menu_directory_item(view_name + translate_string(30405), url)
+
+    # Recently Added Items
+    params = {}
+    params.update(base_params)
+    # if hide_watched:
+    #     params["IsPlayed"] = False
+    params["SortBy"] = "DateCreated"
+    params["SortOrder"] = "Descending"
+    # params["Filters"] = "IsNotFolder"
+    params["Limit"] = item_limit
+    path = get_jellyfin_url("/Users/{userid}/Items", params)
+    url = sys.argv[0] + "?url=" + quote(path) + "&mode=GET_CONTENT&media_type=musicvideos&sort=none"
+    add_menu_directory_item(('{}{}{}').format(view_name, translate_string(30268), get_filtered_items_count_text()), url)
+
+    # Resumable Items
+    params = {}
+    params.update(base_params)
+    params["Filters"] = "IsResumable"
+    params["SortBy"] = "DatePlayed"
+    params["SortOrder"] = "Descending"
+    params["Recursive"] = True
+    params["Limit"] = item_limit
+    path = get_jellyfin_url("/Users/{userid}/Items", params)
+    url = sys.argv[0] + "?url=" + quote(path) + "&mode=GET_CONTENT&media_type=musicvideos&sort=none"
+    add_menu_directory_item(('{}{}{}').format(view_name, translate_string(30267), get_filtered_items_count_text()), url)
 
     xbmcplugin.endOfDirectory(handle)
 
@@ -967,7 +1008,7 @@ def display_livetv_type(menu_params, view):
 
 def display_movies_type(menu_params, view):
     handle = int(sys.argv[1])
-    xbmcplugin.setContent(handle, 'files')
+    xbmcplugin.setContent(handle, 'sets')
 
     view_name = translate_string(30256)
     if view is not None:
@@ -992,7 +1033,7 @@ def display_movies_type(menu_params, view):
     # All Movies
     path = get_jellyfin_url("/Users/{userid}/Items", base_params)
 
-    if settings.getSetting("interface_mode") == "1":
+    if settings.getSetting("interface_mode") == "1" or menu_params.get("view_mode" , "0") == "1":
         get_content(path, { "media_type": "movies" })
         return
 
@@ -1134,7 +1175,7 @@ def display_mixed_type(params, view):
         base_params["ParentId"] = view.get("Id")
     path = get_jellyfin_url("/Users/{userid}/Items", base_params)
 
-    if settings.getSetting("interface_mode") == "1":
+    if settings.getSetting("interface_mode") == "1" or params.get("view_mode" , "0") == "1":
         get_content(path, { "media_type": "mixed" })
         return
 
@@ -1239,16 +1280,18 @@ def display_library_views(params):
     views = views.get("Items", [])
 
     view_types = ["movies", "tvshows", "homevideos", "boxsets", "playlists", "music", "musicvideos", "livetv", "Channel", "mixed"]
-
+    view_mode = params.get('view_mode', '0')
     for view in views:
         collection_type = view.get('CollectionType', 'mixed')
         item_type = view.get('Type', None)
         if collection_type in view_types or item_type == "Channel":
             view_name = view.get("Name")
             art = get_art(item=view, server=server)
-            art['landscape'] = get_art_url(view, "Primary", server=server)
+            art['landscape'] = get_art_url(view, "Primary", server=server)    
+            if art['fanart'] == "":
+                art['fanart'] = art['landscape']
 
-            plugin_path = "plugin://plugin.video.jellycon/?mode=SHOW_ADDON_MENU&type=library_item&view_id=" + view.get("Id")
+            plugin_path = "plugin://plugin.video.jellycon/?mode=SHOW_ADDON_MENU&type=library_item&view_id=" + view.get("Id") + "&view_mode=" + view_mode
 
             if collection_type == "playlists":
                 plugin_path = get_playlist_path(view)
@@ -1332,11 +1375,16 @@ def display_library_view(params):
 
 
 def show_widgets():    
+    item_limit_text = get_filtered_items_count_text()
+
+    add_menu_directory_item(translate_string(30445),
+                            'plugin://plugin.video.jellycon/?mode=WIDGET_CONTENT&type=continue_watching')
+    add_menu_directory_item("Recently Added",
+                            'plugin://plugin.video.jellycon/?mode=WIDGET_CONTENT&type=recently_added')
+    
     add_menu_directory_item("All Movies",
                             'plugin://plugin.video.jellycon/library/movies')
     
-    item_limit_text = get_filtered_items_count_text()
-
     add_menu_directory_item(translate_string(30257) + item_limit_text,
                             'plugin://plugin.video.jellycon/?mode=WIDGET_CONTENT&type=recent_movies')
     add_menu_directory_item(translate_string(30258) + item_limit_text,

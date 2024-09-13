@@ -397,7 +397,8 @@ def get_default_filters():
         "ProductionYear",
         "AirTime",
         "Status",
-        "Tags"
+        "Tags",
+        "ParentId"
     ]
 
     if include_media:

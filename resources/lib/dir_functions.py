@@ -222,7 +222,7 @@ def set_sort(pluginhandle, view_type, default_sort):
 
 @timer
 def process_directory(url, progress, params, use_cache_data=False):
-    log.debug("== ENTER: processDirectory ==")
+    log.debug("== ENTER: processDirectory == and MediaType = {0}".format(params.get("media_type", "not found")))
 
     data_manager = DataManager()
     settings = xbmcaddon.Addon()
@@ -230,6 +230,7 @@ def process_directory(url, progress, params, use_cache_data=False):
     user_details = load_user_details()
     user_id = user_details.get('user_id')
 
+    combine_folders = params.get("combine_folders", False)
     name_format = params.get("name_format", None)
     name_format_type = None
     if name_format is not None:
@@ -302,6 +303,13 @@ def process_directory(url, progress, params, use_cache_data=False):
 
     detected_type = None
     dir_items = []
+    folders = set()
+    
+    if combine_folders:
+        for item_details in item_list:
+            if item_details.is_folder is True:
+                log.debug("Item details adding to folders %s %s" % (item_details.name, item_details.id))
+                folders.add(item_details.id)
 
     for item_details in item_list:
 

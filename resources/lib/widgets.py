@@ -317,6 +317,28 @@ def get_widget_content(handle, params):
         url_params["IsVirtualUnaired"] = False
         url_params["IncludeItemTypes"] = "Movie"
         url_params["Limit"] = item_limit
+    
+    elif widget_type == "continue_watching":
+        xbmcplugin.setContent(handle, 'video')
+        url_params["Recursive"] = True
+        url_params["SortBy"] = "DatePlayed"
+        url_params["SortOrder"] = "Descending"
+        url_params["Filters"] = "IsResumable"
+        url_params["IsVirtualUnaired"] = False
+        url_params["MediaTypes"] = "Video"
+        url_params["Limit"] = item_limit
+    
+    elif widget_type == "recently_added":
+        xbmcplugin.setContent(handle, 'video')
+        log.debug("Item details is recently_added")
+        url_params["Recursive"] = True
+        url_params["SortBy"] = "DateCreated"
+        url_params["SortOrder"] = "Descending"
+        if hide_watched:
+            url_params["IsPlayed"] = False        
+        url_params["IsVirtualUnaired"] = False
+        url_params["Limit"] = item_limit
+        params["combine_folders"] = True
 
     elif widget_type == "inprogress_movies":
         xbmcplugin.setContent(handle, 'movies')
