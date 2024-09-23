@@ -2,6 +2,7 @@ from __future__ import (
     division, absolute_import, print_function, unicode_literals
 )
 
+import json
 import sys
 import re
 
@@ -188,6 +189,10 @@ def get_content(url, params):
         if detected_type == "Episode":
             view_type = "Episodes"
             content_type = 'episodes'
+        if detected_type == "MusicVideo":
+            view_type = "Music Videos"
+            content_type = 'musicvideos'
+        
         xbmcplugin.setContent(pluginhandle, content_type)
 
     # set the sort items
@@ -348,13 +353,17 @@ def process_directory(url, progress, params, use_cache_data=False):
     if combine_folders:
         for item_details in item_list:
             if item_details.is_folder is True:
-                log.debug("Item details adding to folders %s %s" % (item_details.name, item_details.id))
+                log.debug(">>>>>> Item details adding to folders %s %s" % (item_details.name, item_details.recursive_unplayed_items_count))
                 folders.add(item_details.id)
 
     for item_details in item_list:
         if OnlyTotallyUnwatchedTvShow == "1" and item_details.watched_episodes > 0:
             continue
         item_details.total_items = item_count
+
+        if combine_folders and (item_details.parent_id in folders or (item_details.is_folder is True and item_details.recursive_unplayed_items_count <= 0)):
+            log.debug(">>>>>>> Item details found folder %s %s %s" % (item_details.name , item_details.parent_id, item_details.recursive_unplayed_items_count))
+            continue
 
         if progress is not None:
             percent_done = (float(current_item) / float(item_count)) * 100
