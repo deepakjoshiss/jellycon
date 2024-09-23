@@ -334,8 +334,8 @@ def get_widget_content(handle, params):
         url_params["Recursive"] = True
         url_params["SortBy"] = "DateCreated"
         url_params["SortOrder"] = "Descending"
-        if hide_watched:
-            url_params["IsPlayed"] = False        
+        url_params["IsPlayed"] = False        
+        url_params["isMissing"] = False        
         url_params["IsVirtualUnaired"] = False
         url_params["Limit"] = item_limit
         params["combine_folders"] = True

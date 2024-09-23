@@ -9,7 +9,7 @@ import xbmcaddon
 import xbmcgui
 
 from resources.lib.lazylogger import LazyLogger
-from resources.lib.play_utils import Service, PlaybackService, send_progress
+from resources.lib.play_utils import Service, PlaybackService, check_sub_update, send_progress
 from resources.lib.kodi_utils import HomeWindow
 from resources.lib.widgets import set_background_image, set_random_movies
 from resources.lib.websocket_client import WebSocketClient
@@ -104,7 +104,7 @@ first_run = True
 home_window.set_property('exit', 'False')
 
 while home_window.get_property('exit') == 'False':
-
+    log.debug(">>>>>> Service is running 1 {}".format(home_window.get_property('updatesub')))
     try:
         if xbmc.Player().isPlaying():
             last_random_movie_update = time.time() - (random_movie_list_interval - 15)
@@ -112,6 +112,7 @@ while home_window.get_property('exit') == 'False':
             if (time.time() - last_progress_update) > 10:
                 last_progress_update = time.time()
                 send_progress()
+            check_sub_update()
 
         else:
             screen_saver_active = xbmc.getCondVisibility("System.ScreenSaverActive")

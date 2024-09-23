@@ -2,6 +2,7 @@ from __future__ import (
     division, absolute_import, print_function, unicode_literals
 )
 
+from itertools import islice
 import json
 import os
 import re
@@ -27,6 +28,7 @@ from .cache_images import CacheArtwork
 from .picture_viewer import PictureViewer
 from .tracking import timer
 from .playnext import PlayNextDialog
+from .jsonrpc import JsonRpc
 
 log = LazyLogger(__name__)
 settings = xbmcaddon.Addon()
@@ -386,7 +388,7 @@ def play_file(play_info):
     if selected_media_source is None:
         log.debug("Play Aborted, MediaSource was None")
         return
-
+    sub_names = __build_subtile_list(selected_media_source)
     source_id = selected_media_source.get("Id")
     seek_time = 0
     auto_resume = int(auto_resume)
@@ -476,6 +478,7 @@ def play_file(play_info):
     data["play_action_type"] = "play"
     data["item_type"] = result.get("Type", None)
     data["can_delete"] = result.get("CanDelete", False)
+    data["sub_names"] = sub_names
 
     # Check for next episodes
     if result.get('Type') == 'Episode':
@@ -566,6 +569,15 @@ def play_file(play_info):
             else:
                 log.info("PlaybackResumrAction : Playback resumed")
 
+def __build_subtile_list(source):
+    subtitles = [item for item in source.get('MediaStreams', {}) if item.get('Type') == "Subtitle"]
+    subs = []
+
+    for index, subtitle in zip(range(10), subtitles):
+        log.debug(">>>>>>>> service adding subtitle name {0}".format(subtitle.get('DisplayTitle', '')))
+        type_str = ' forced' if subtitle.get('IsForced', False) else ' sdh' if  subtitle.get('IsHearingImpaired', False) else ' def' if  subtitle.get('IsDefault', False) else ''
+        subs.append("#{} {}{}.{}".format(index + 1, subtitle.get('Language', 'N/A').upper(), type_str, subtitle.get('Codec', 'unk').replace('_', '-')))
+    return subs
 
 def __build_label2_from(source):
     videos = [item for item in source.get('MediaStreams', {}) if item.get('Type') == "Video"]
@@ -940,6 +952,42 @@ def external_subs(media_source, list_item, item_id):
             selected_sub = externalsubs[resp]
             log.debug("External Subtitle Selected: {0}".format(selected_sub))
             list_item.setSubtitles([selected_sub])
+
+
+def check_sub_update():
+    home_window = HomeWindow()
+    updatesub = home_window.get_property('updatesub') == '1'
+    home_window.clear_property('updatesub')
+    play_data_string = home_window.get_property('now_playing')
+    current_id = home_window.get_property('currently_playing_id')
+
+    log.debug(">>>>>>>> Service sub checking current id: {} updatesub: {} playdata: {}".format(current_id, updatesub, play_data_string))
+    try:
+        play_data = json.loads(play_data_string)
+        sub_names = play_data.get('sub_names', [])
+        if not (current_id and play_data.get('item_id' , '') == current_id and len(sub_names) > 0):
+            home_window.clear_property('currentsub')
+            return None
+        if updatesub:
+            params = {
+                "playerid": 1,
+                "properties": [
+                    "currentsubtitle",
+                ]
+            }
+            result = JsonRpc("Player.GetProperties").execute(params)
+            log.info(">>>>>>>> Service sub updating {}".format(result))
+            curent_sub_index = result.get('result', {}).get('currentsubtitle', {}).get('index', -1)
+            if curent_sub_index >=0 and len(sub_names) > curent_sub_index :
+                log.debug(">>>>>>>> Service sub data {0} >>>>>>>>> {1} >>>>> {2}".format(result, curent_sub_index, sub_names[curent_sub_index]))
+                home_window.set_property('currentsub', sub_names[curent_sub_index])
+            else:
+                home_window.clear_property('currentsub')
+                log.debug(">>>>>>>> Service sub data is less {0} >>>>>>>>> {1} >>>>> {2}".format(result, curent_sub_index, sub_names))
+    except ValueError:
+        # This isn't a JellyCon item
+        home_window.clear_property('currentsub')
+        return None
 
 
 def send_progress():
@@ -1376,6 +1424,7 @@ class Service(xbmc.Player):
 
         home_screen = HomeWindow()
         home_screen.set_property("currently_playing_id", str(jellyfin_item_id))
+        home_screen.set_property("updatesub", '1')
 
     def onPlayBackEnded(self):
         # Will be called when kodi stops playing a file
