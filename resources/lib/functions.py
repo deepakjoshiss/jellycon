@@ -2,6 +2,7 @@ from __future__ import (
     division, absolute_import, print_function, unicode_literals
 )
 
+import datetime
 import sys
 import os
 import time
@@ -329,7 +330,7 @@ def show_menu(params):
 
     url = "/Users/{}/Items/{}?format=json".format(api.user_id, item_id)
     result = api.get(url)
-    log.debug("Menu item info: {0}".format(result))
+    log.debug("Menu item info: {0} - {1}".format(result["Type"], result["Name"]))
 
     if result is None:
         return
@@ -392,11 +393,12 @@ def show_menu(params):
         li = xbmcgui.ListItem("Show Extras", offscreen=True)
         li.setProperty('menu_id', 'show_extras')
         action_items.append(li)
-
+    last_item = None
     user_data = result.get("UserData", None)
     if user_data:
         progress = user_data.get("PlaybackPositionTicks", 0) != 0
         played = user_data.get("Played", False)
+
         if not played or progress:
             li = xbmcgui.ListItem(translate_string(30270), offscreen=True)
             li.setProperty('menu_id', 'mark_watched')
@@ -414,6 +416,16 @@ def show_menu(params):
             li = xbmcgui.ListItem(translate_string(30273), offscreen=True)
             li.setProperty('menu_id', 'jellyfin_unset_favorite')
             action_items.append(li)
+        
+        if progress and action_items[0].getProperty('menu_id') == 'play':
+            reasonable_ticks = int(user_data.get("PlaybackPositionTicks")) / 1000
+            seek_time = round(reasonable_ticks / 10000,0)
+            display_time = (datetime.datetime(1,1,1) + datetime.timedelta(seconds=seek_time)).strftime('%H:%M:%S')
+            action_items[0].setLabel('Resume from ' + display_time)
+
+            last_item = xbmcgui.ListItem(translate_string(30237), offscreen=True)
+            last_item.setProperty('menu_id', 'play_start')
+            log.info(">>>>>>>> Menu item {}".format(last_item.getProperty('menu_id')))
 
     can_delete = result.get("CanDelete", False)
     if can_delete:
@@ -437,6 +449,9 @@ def show_menu(params):
     li = xbmcgui.ListItem(translate_string(30401), offscreen=True)
     li.setProperty('menu_id', 'info')
     action_items.append(li)
+
+    if last_item:
+        action_items.append(last_item)
 
     window = xbmcgui.Window(xbmcgui.getCurrentWindowId())
     container_view_id = str(window.getFocusId())
@@ -471,6 +486,11 @@ def show_menu(params):
 
     if selected_action == "play":
         log.debug("Play Item")
+        play_action(params)
+    
+    elif selected_action == "play_start":
+        log.debug("Play Item from start")
+        params['action'] = 'play_start'
         play_action(params)
 
     elif selected_action == "set_view":
