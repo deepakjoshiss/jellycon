@@ -394,7 +394,9 @@ def play_file(play_info):
     auto_resume = int(auto_resume)
 
     # process user data for resume points
-    if auto_resume != -1:
+    if action == 'play_start':
+        seek_time = 0
+    elif auto_resume != -1:
         seek_time = (auto_resume / 1000) / 10000
 
     elif force_auto_resume:

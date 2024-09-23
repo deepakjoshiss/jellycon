@@ -8,6 +8,7 @@ from dateutil import tz
 from six import ensure_text
 from six.moves.urllib.parse import quote
 import xbmcgui
+import xbmcaddon
 
 from .utils import (
     datetime_from_string, get_art_url, image_url, get_current_datetime
@@ -362,7 +363,9 @@ def add_gui_item(url, item_details, display_options, folder=True, default_sort=F
         if default_sort:
             u += '&sort=none'
     else:
-        u = sys.argv[0] + "?item_id=" + url + "&mode=PLAY"
+        settings = xbmcaddon.Addon()
+        modestr = 'PLAY' if settings.getSetting("widget_select_action") == "1" else 'SHOW_MENU'
+        u = sys.argv[0] + "?item_id=" + url + "&mode=" + modestr
 
     list_item_name = item_details.name
     item_type = item_details.item_type.lower()
