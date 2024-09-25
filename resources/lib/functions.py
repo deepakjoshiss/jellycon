@@ -32,6 +32,7 @@ from .menu_functions import (
 )
 from .server_sessions import show_server_sessions
 from .action_menu import ActionMenu
+from .media_info_dialog import MediaInfoDialog
 from .dialogs import BitrateDialog
 from .widgets import (
     get_widget_content, get_widget_content_cast, check_for_new_content
@@ -72,10 +73,10 @@ def main_entry_point():
         xbmc.getInfoLabel("System.BuildVersion"))
     )
     log.debug("Kodi Version: {0}".format(kodi_version()))
-    log.debug("Script argument data: {0}".format(sys.argv))
+    log.info("Script argument data: {0}".format(sys.argv))
 
     params = get_params()
-    log.debug("Script params: {0}".format(params))
+    log.info("Script params: {0}".format(params))
 
     request_path = params.get("request_path", None)
     param_url = params.get('url', None)
@@ -343,6 +344,11 @@ def show_menu(params):
         li = xbmcgui.ListItem(translate_string(30314), offscreen=True)
         li.setProperty('menu_id', 'play')
         action_items.append(li)
+        
+        li = xbmcgui.ListItem('Media Info', offscreen=True)
+        li.setProperty('menu_id', 'media_info')
+        action_items.append(li)
+
 
     if result["Type"] in ["Season", "MusicArtist", "MusicAlbum", "Playlist",
                           "MusicGenre"]:
@@ -419,8 +425,8 @@ def show_menu(params):
         
         if progress and action_items[0].getProperty('menu_id') == 'play':
             reasonable_ticks = int(user_data.get("PlaybackPositionTicks")) / 1000
-            seek_time = round(reasonable_ticks / 10000,0)
-            display_time = (datetime.datetime(1,1,1) + datetime.timedelta(seconds=seek_time)).strftime('%H:%M:%S')
+            seek_time = round(reasonable_ticks / 10000, 0)
+            display_time = (datetime.datetime(1, 1, 1) + datetime.timedelta(seconds=seek_time)).strftime('%H:%M:%S')
             action_items[0].setLabel('Resume from ' + display_time)
 
             last_item = xbmcgui.ListItem(translate_string(30237), offscreen=True)
@@ -450,9 +456,6 @@ def show_menu(params):
     li.setProperty('menu_id', 'info')
     action_items.append(li)
 
-    if last_item:
-        action_items.append(last_item)
-
     window = xbmcgui.Window(xbmcgui.getCurrentWindowId())
     container_view_id = str(window.getFocusId())
     container_content_type = xbmc.getInfoLabel("Container.Content")
@@ -474,6 +477,9 @@ def show_menu(params):
             li.setProperty('menu_id', 'set_view')
             action_items.append(li)
 
+    if last_item:
+        action_items.append(last_item)
+
     action_menu = ActionMenu("ActionMenu.xml", PLUGINPATH, "default", "720p")
     action_menu.setActionItems(action_items)
     action_menu.doModal()
@@ -487,7 +493,10 @@ def show_menu(params):
     if selected_action == "play":
         log.debug("Play Item")
         play_action(params)
-    
+
+    elif selected_action == "media_info":
+        show_media_info(params)
+
     elif selected_action == "play_start":
         log.debug("Play Item from start")
         params['action'] = 'play_start'
@@ -681,6 +690,14 @@ def show_menu(params):
         xbmc.executebuiltin("Dialog.Close(all,true)")
         xbmc.executebuiltin("Action(info)")
 
+
+def show_media_info(params):
+    log.debug("showMediaInfo(): {0}".format(params))
+    item_id = params["item_id"]
+    
+    action_menu = MediaInfoDialog("Custom_1160_MediaInfo.xml", PLUGINPATH, "default", "720p")
+    action_menu.setItemId(item_id)
+    action_menu.doModal()
 
 def show_content(params):
     log.debug("showContent Called: {0}".format(params))
