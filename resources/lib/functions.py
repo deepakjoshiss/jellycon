@@ -140,6 +140,8 @@ def main_entry_point():
     elif mode == "SEARCH":
         xbmcplugin.setContent(int(sys.argv[1]), 'files')
         show_search()
+    elif mode == "SEARCH_ALL":
+        show_search_all()
     elif mode == "NEW_SEARCH":
         search_results(params)
     elif mode == "NEW_SEARCH_PERSON":
@@ -775,6 +777,51 @@ def search_results_person(params):
 
     xbmcplugin.endOfDirectory(handle, cacheToDisc=False)
 
+def show_search_all():
+    home_window = HomeWindow()
+    last_search = home_window.get_property("last_search")
+    kb = xbmc.Keyboard()
+    kb.setHeading("{} {}".format(
+        translate_string(30246).capitalize(), translate_string(30014).capitalize()
+    ))
+    kb.setDefault(last_search)
+    kb.doModal()
+
+    if kb.isConfirmed():
+        user_input = kb.getText().strip()
+    else:
+        return
+
+    url_params = {
+        "searchTerm": user_input,
+        "IncludePeople": False,
+        "IncludeMedia": True,
+        "IncludeGenres": False,
+        "IncludeStudios": False,
+        "IncludeArtists": False,
+        "Limit": 16,
+        "Fields": get_default_filters(),
+        "Recursive": True,
+        "EnableTotalRecordCount": False,
+        "ImageTypeLimit": 1
+    }
+    url_path = "/Users/{}/Items".format(api.user_id)
+    search_url = get_jellyfin_url(url_path, url_params)
+
+    action_params = {
+        "mode": 'GET_CONTENT',
+        "media_type": 'mixed',
+        "url": search_url
+    }
+
+    action_params = urlencode(action_params)
+
+    action_url = "plugin://{}/?{}".format(addon_id, action_params)
+    built_in_command = 'ActivateWindow(Videos, {}, return)'.format(
+        action_url
+    )
+    xbmc.executebuiltin(built_in_command)
+
 
 def search_results(params):
 
@@ -786,6 +833,14 @@ def search_results(params):
         log.debug("query_string : {0}".format(query_string))
 
     item_type = item_type.lower()
+    if item_type == 'movies':
+        item_type = 'movie'
+    elif item_type == 'musicvideos':
+        item_type = 'musicvideo'
+    elif item_type == 'tvshows':
+        item_type = 'series'
+    elif item_type == 'episodes' or item_type == 'seasons':
+        item_type = 'episode'
 
     if item_type == 'movie':
         heading_type = translate_string(30231)

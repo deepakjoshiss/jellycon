@@ -1,8 +1,11 @@
+import datetime
 import xbmc
 import xbmcgui
 
+
 from .jellyfin import api
 from .lazylogger import LazyLogger
+from .utils import datetime_from_string
 
 log = LazyLogger(__name__)
 
@@ -19,6 +22,31 @@ SKIP_KEYS = {
     'LocalizedHearingImpaired',
     'LocalizedForced',
     'LocalizedUndefined',
+}
+SKIP_KEYS_TYPES = {
+    'Video' : {
+        'AudioSpatialFormat',
+        'IsForced',
+        'IsDefault',
+        'IsHearingImpaired',
+        'IsExternal',
+        'IsTextSubtitleStream',
+        'SupportsExternalStream',
+    },
+    'Audio' : {
+        'IsInterlaced',
+        'IsHearingImpaired',
+        'IsTextSubtitleStream',
+        'SupportsExternalStream'
+    },
+    'Subtitle' : {
+        'Height',
+        'Width',
+        'AudioSpatialFormat',
+        'VideoRange',
+        'VideoRangeType',
+        'IsInterlaced',
+    }
 }
 
 
@@ -51,10 +79,13 @@ class MediaInfoDialog(xbmcgui.WindowXMLDialog):
         self.titleControl.setLabel(self.itemData.get('Name', 'Unknown'))
         self.mediaStreams = self.itemData.get('MediaStreams', [])
         mediaSource = self.itemData.get('MediaSources', [])[0]
-        self.fileInfoControl.setLabel("Container: [LIGHT]{}[/LIGHT]    Size: [LIGHT]{} MB[/LIGHT]    Date Added: [LIGHT]{}[/LIGHT]".format(
+        self.fileInfoControl.setLabel("{} - Container: [LIGHT]{}[/LIGHT]   Duration: [LIGHT]{}[/LIGHT]   Size: [LIGHT]{} MB[/LIGHT]   BitRate: [LIGHT]{} Kbps[/LIGHT]   Date Added: [LIGHT]{}[/LIGHT]".format(
+            self.itemData.get('Type'),
             mediaSource.get('Container'),
-            int(int(mediaSource.get('Size')) / 1000000),
-            self.itemData.get('DateCreated')
+            str(datetime.timedelta(milliseconds=self.itemData.get('RunTimeTicks', 0) / 10000)),
+            format(int(int(mediaSource.get('Size')) / (1024 * 1024)), ','),
+            format(int(int(mediaSource.get('Bitrate')) / 1024 ), ','),
+            datetime_from_string(self.itemData.get('DateCreated')).strftime("%b %d, %Y at %I:%M %p")
         ))
 
         log.debug("MediaInfoDialog item details: {0}".format(self.itemData.get('Id', '')))
@@ -79,8 +110,10 @@ class MediaInfoDialog(xbmcgui.WindowXMLDialog):
         temp_str = ''
         count = 0
         for key in stream:
-            if key in SKIP_KEYS:
+            temp_str = stream.get('Type', 'Unknown')
+            if key in SKIP_KEYS or key in SKIP_KEYS_TYPES.get(temp_str, {}):
                 continue
+
             temp_str = "{} [LIGHT]> {}[/LIGHT][CR]".format(key, str(stream.get(key)))
             if (count < 18):
                 stream_info += temp_str
@@ -90,10 +123,6 @@ class MediaInfoDialog(xbmcgui.WindowXMLDialog):
             # log.info('>>>>>>>>> MediaInfoDialog: stream loop {} >>>>>> {}'.format(key, stream.get(key)))
         list_item.setProperty('StreamInfo', stream_info)
         list_item.setProperty('StreamInfo2', stream_info2)
-
-    def onFocus(self, control_id):
-        log.debug('>>>>>>>>> MediaInfoDialog: focused control {} >>>> {}'.format(control_id))
-        pass
 
     # def doAction(self, action_id):
     #     pass
