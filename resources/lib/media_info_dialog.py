@@ -4,6 +4,7 @@ import xbmcgui
 
 
 from .jellyfin import api
+from .kodigui import PLUGINPATH, RES, THEME, BaseDialog
 from .lazylogger import LazyLogger
 from .utils import datetime_from_string
 
@@ -49,9 +50,9 @@ SKIP_KEYS_TYPES = {
     }
 }
 
-
-class MediaInfoDialog(xbmcgui.WindowXMLDialog):
-
+class MediaInfoDialog(BaseDialog):
+    xmlFile = 'Custom_1160_MediaInfo.xml'
+    
     item_id = None
     listControl = None
     titleControl = None
@@ -62,8 +63,9 @@ class MediaInfoDialog(xbmcgui.WindowXMLDialog):
     mediaStreams = None
 
     def __init__(self, *args, **kwargs):
-        log.debug("MediaInfoDialog: __init__")
-        xbmcgui.WindowXML.__init__(self, *args, **kwargs)
+        log.info("MediaInfoDialog: __init__ " + kwargs['item_id'])
+        self.item_id = kwargs['item_id']
+        BaseDialog.__init__(self, *args, **kwargs)
 
     def onInit(self):
         self.action_exitkeys_id = [10, 13]
@@ -149,9 +151,6 @@ class MediaInfoDialog(xbmcgui.WindowXMLDialog):
             self.set_media_info(index, selected_action)
             log.debug('>>>>>>>>> MediaInfoDialog: setting stram info {}'.format(index))
             pass
-
-    def setItemId(self, item_id):
-        self.item_id = item_id
 
     def getItemId(self):
         return self.item_id
