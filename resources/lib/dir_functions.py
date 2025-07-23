@@ -315,9 +315,10 @@ def process_directory(url, progress, params, use_cache_data=False):
             if item_details.is_folder is True:
                 log.debug(">>>>>> Item details adding to folders %s %s" % (item_details.name, item_details.recursive_unplayed_items_count))
                 folders.add(item_details.id)
-
+    OnlyTotallyUnwatchedTvShow = params.get("OnlyTotallyUnwatchedTvShow", None)    
     for item_details in item_list:
-
+        if OnlyTotallyUnwatchedTvShow == "1" and item_details.watched_episodes > 0:
+            continue
         item_details.total_items = item_count
 
         if combine_folders and (item_details.parent_id in folders or (item_details.is_folder is True and item_details.recursive_unplayed_items_count <= 0)):

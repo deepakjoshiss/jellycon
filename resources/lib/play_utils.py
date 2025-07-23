@@ -744,8 +744,20 @@ def set_list_item_props(item_id, list_item, result, server, extra_props, title):
 
         details = {
             'title': title,
-            'mediatype': mediatype
+            'mediatype': mediatype,
+            'artist': "Unknown Artist",
+            'album': "Unknown Album"
         }
+        artist = result.get("Artists", [])
+        if artist:
+            details['artist'] = artist[0]
+        track = result.get("IndexNumber")
+        if track:
+            details['tracknumber'] = track
+        album = result.get("Album")
+        if album:
+            details['album'] = album
+            
         list_item.setInfo("Music", infoLabels=details)
 
     else:
@@ -905,9 +917,7 @@ def external_subs(media_source, list_item, item_id):
     sub_names = []
 
     server = settings.getSetting('server_address')
-
-    for stream in media_streams:
-
+    for idx, stream in enumerate(media_streams):
         if (stream['Type'] == "Subtitle"
                 and stream['IsExternal']
                 and stream['IsTextSubtitleStream']
@@ -925,13 +935,16 @@ def external_subs(media_source, list_item, item_id):
 
             url = '{}{}'.format(server, stream.get('DeliveryUrl'))
             if language:
+                title = str(idx)
+                if stream.get('Title'):
+                    title = stream['Title']
                 '''
                 Starting in 10.8, the server no longer provides language
                 specific download points.  We have to download the file
                 and name it with the language code ourselves so Kodi
                 will parse it correctly
                 '''
-                subtitle_file = download_external_sub(language, codec, url)
+                subtitle_file = download_external_sub(language, codec, url, title)
             else:
                 # If there is no language defined, we can go directly to the server
                 subtitle_file = url
@@ -1081,7 +1094,7 @@ def prompt_for_stop_actions(item_id, data):
             prompt_delete_movie_percentage == 100):
         return
 
-    # if no runtime we can't calculate perceantge so just return
+    # if no runtime we can't calculate percentage so just return
     if duration == 0:
         log.debug("No duration so returning")
         return
@@ -1094,10 +1107,9 @@ def prompt_for_stop_actions(item_id, data):
     if (next_episode is not None and
             prompt_next_percentage < 100 and
             item_type == "Episode" and
-            percentage_complete > prompt_next_percentage):
+            percentage_complete >= prompt_next_percentage):
 
         if play_prompt:
-
             plugin_path = settings.getAddonInfo('path')
             plugin_path_real = translate_path(os.path.join(plugin_path))
 
@@ -1107,6 +1119,14 @@ def prompt_for_stop_actions(item_id, data):
 
             if not play_next_dialog.get_play_called():
                 xbmc.executebuiltin("Container.Refresh")
+
+        else:
+            play_info = {
+                "item_id": next_episode.get("Id"),
+                "auto_resume": "-1",
+                "force_transcode": False
+            }
+            send_event_notification("jellycon_play_action", play_info)
 
 
 def stop_all_playback():
@@ -1225,6 +1245,16 @@ def get_playing_data():
 
     return {}
 
+def get_jellyfin_playing_item():
+    home_window = HomeWindow()
+    play_data_string = home_window.get_property('now_playing')
+    try:
+        play_data = json.loads(play_data_string)
+    except ValueError:
+        # This isn't a JellyCon item
+        return None
+
+    return play_data.get("item_id")
 
 def get_play_url(media_source, play_session_id, channel_id=None):
     log.debug("get_play_url - media_source: {0}", media_source)
@@ -1737,3 +1767,11 @@ def get_item_playback_info(item_id, force_transcode):
     log.debug("PlaybackInfo : {0}".format(play_info_result))
 
     return play_info_result
+
+def get_media_segments(item_id):
+    url = "/MediaSegments/{}".format(item_id)
+    result = api.get(url)
+    if result is None or result["Items"] is None:
+        log.debug("GetMediaSegments : Media segments cloud not be retrieved")
+        return None
+    return result["Items"]

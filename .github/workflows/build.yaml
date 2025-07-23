@@ -18,7 +18,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Python 3.x
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: 3.9
 
@@ -31,7 +31,7 @@ jobs:
         run: python build.py --version ${{ matrix.py_version }}
 
       - name: Publish Build Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           retention-days: 14
           name: ${{ matrix.py_version }}-build-artifact
