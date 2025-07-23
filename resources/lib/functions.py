@@ -16,6 +16,8 @@ import xbmc
 from six import StringIO
 from six.moves.urllib.parse import quote, unquote, parse_qsl, urlencode
 
+from resources.lib.search_screen import SearchScreen
+
 from .jellyfin import api
 from .utils import (
     translate_string, get_version, load_user_details, get_art_url,
@@ -427,13 +429,12 @@ def show_menu(params):
         
         if progress and action_items[0].getProperty('menu_id') == 'play':
             reasonable_ticks = int(user_data.get("PlaybackPositionTicks")) / 1000
-            seek_time = round(reasonable_ticks / 10000, 0)
+            seek_time =  max(0, round(reasonable_ticks / 10000, 0))
             display_time = (datetime.datetime(1, 1, 1) + datetime.timedelta(seconds=seek_time)).strftime('%H:%M:%S')
             action_items[0].setLabel('Resume from ' + display_time)
 
             last_item = xbmcgui.ListItem(translate_string(30237), offscreen=True)
             last_item.setProperty('menu_id', 'play_start')
-            log.info(">>>>>>>> Menu item {}".format(last_item.getProperty('menu_id')))
 
     can_delete = result.get("CanDelete", False)
     if can_delete:
@@ -697,9 +698,8 @@ def show_media_info(params):
     log.debug("showMediaInfo(): {0}".format(params))
     item_id = params["item_id"]
     
-    action_menu = MediaInfoDialog("Custom_1160_MediaInfo.xml", PLUGINPATH, "default", "720p")
-    action_menu.setItemId(item_id)
-    action_menu.doModal()
+    MediaInfoDialog.openModal(item_id=item_id)
+
 
 def show_content(params):
     log.debug("showContent Called: {0}".format(params))
@@ -778,49 +778,52 @@ def search_results_person(params):
     xbmcplugin.endOfDirectory(handle, cacheToDisc=False)
 
 def show_search_all():
-    home_window = HomeWindow()
-    last_search = home_window.get_property("last_search")
-    kb = xbmc.Keyboard()
-    kb.setHeading("{} {}".format(
-        translate_string(30246).capitalize(), translate_string(30014).capitalize()
-    ))
-    kb.setDefault(last_search)
-    kb.doModal()
 
-    if kb.isConfirmed():
-        user_input = kb.getText().strip()
-    else:
-        return
+    window = SearchScreen.showWindow()
+    MONITOR = xbmc.Monitor()    
+    while window.isWindowOpen() and not MONITOR.waitForAbort(2):
+        log.info('>>>>>>>> SearchScreen is open 2 {} {}'.format(window.isWindowOpen(), xbmcgui.getCurrentWindowId()))
 
-    url_params = {
-        "searchTerm": user_input,
-        "IncludePeople": False,
-        "IncludeMedia": True,
-        "IncludeGenres": False,
-        "IncludeStudios": False,
-        "IncludeArtists": False,
-        "Limit": 16,
-        "Fields": get_default_filters(),
-        "Recursive": True,
-        "EnableTotalRecordCount": False,
-        "ImageTypeLimit": 1
-    }
-    url_path = "/Users/{}/Items".format(api.user_id)
-    search_url = get_jellyfin_url(url_path, url_params)
+    # kb.setHeading("{} {}".format(
+    #     translate_string(30246).capitalize(), translate_string(30014).capitalize()
+    # ))
+    # kb.setDefault(last_search)
+    # kb.doModal()
 
-    action_params = {
-        "mode": 'GET_CONTENT',
-        "media_type": 'mixed',
-        "url": search_url
-    }
+    # if kb.isConfirmed():
+    #     user_input = kb.getText().strip()
+    # else:
+    #     return
 
-    action_params = urlencode(action_params)
+    # url_params = {
+    #     "searchTerm": user_input,
+    #     "IncludePeople": False,
+    #     "IncludeMedia": True,
+    #     "IncludeGenres": False,
+    #     "IncludeStudios": False,
+    #     "IncludeArtists": False,
+    #     "Limit": 16,
+    #     "Fields": get_default_filters(),
+    #     "Recursive": True,
+    #     "EnableTotalRecordCount": False,
+    #     "ImageTypeLimit": 1
+    # }
+    # url_path = "/Users/{}/Items".format(api.user_id)
+    # search_url = get_jellyfin_url(url_path, url_params)
 
-    action_url = "plugin://{}/?{}".format(addon_id, action_params)
-    built_in_command = 'ActivateWindow(Videos, {}, return)'.format(
-        action_url
-    )
-    xbmc.executebuiltin(built_in_command)
+    # action_params = {
+    #     "mode": 'GET_CONTENT',
+    #     "media_type": 'mixed',
+    #     "url": search_url
+    # }
+
+    # action_params = urlencode(action_params)
+
+    # action_url = "plugin://{}/?{}".format(addon_id, action_params)
+    # built_in_command = 'ActivateWindow(Videos, {}, return)'.format(
+    #     action_url
+    # )
+    # xbmc.executebuiltin(built_in_command)
 
 
 def search_results(params):
