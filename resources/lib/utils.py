@@ -386,6 +386,7 @@ def get_default_filters():
         "Taglines",
         "SortName",
         "RecursiveItemCount",
+        "ProviderIds",
         "ChildCount",
         "ProductionLocations",
         "CriticRating",

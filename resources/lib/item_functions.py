@@ -11,6 +11,8 @@ import xbmc
 import xbmcgui
 import xbmcaddon
 
+from resources.lib.mediadata import IMDB_250_MAP
+
 from .utils import (
     datetime_from_string, get_art_url, image_url, get_current_datetime
 )
@@ -57,6 +59,7 @@ class ItemDetails:
     status = None
     media_streams = None
     tags = []
+    imdb_ranking = -1
 
     resume_time = 0
     duration = 0
@@ -139,6 +142,13 @@ def extract_item_info(item, gui_options):
     elif item_details.item_type == "MusicAlbum":
         item_details.album_artist = item.get("AlbumArtist")
         item_details.album_name = item_details.name
+    
+    elif item_details.item_type == "Movie" and item.get("ProviderIds") is not None:
+        imdb_id = item.get("ProviderIds").get("Imdb")
+        ranking = IMDB_250_MAP.get(imdb_id, -1)
+        if ranking > 0:
+            item_details.imdb_ranking = ranking
+            log.debug('>>>>>>>> item imdb id ranking {} - {}'.format(imdb_id, ranking))
 
     if not item_details.season_number:
         item_details.season_number = 0
@@ -640,7 +650,10 @@ def add_gui_item(url, item_details, display_options, folder=True, default_sort=F
             if(item_details.critic_rating > 0.0): 
                 item_properties["RottenTomatoes_Rating"] = item_details.critic_rating
             item_properties["TotalTime"] = str(item_details.duration)
-
+            # log.info(">>>>>>>> Item details adding ranking {}".format(item_details.imdb_ranking))
+            if(item_details.imdb_ranking > 0):
+                item_properties["IMDB_Ranking"] = "{}".format(item_details.imdb_ranking)
+                
         else:
             # Non video, must be music related
             music_tag = list_item.getMusicInfoTag()
@@ -650,6 +663,7 @@ def add_gui_item(url, item_details, display_options, folder=True, default_sort=F
             elif item_details.song_artist:
                 music_tag.setArtist(item_details.song_artist[0])
             music_tag.setAlbum(item_details.album_name)
+
     else:
         # Kodi 19
         info_labels["mediatype"] = mediatype

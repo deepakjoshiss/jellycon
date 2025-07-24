@@ -79,9 +79,9 @@ class CacheArtwork(threading.Thread):
         web_query = {"setting": "services.webserver"}
         result = JsonRpc('Settings.GetSettingValue').execute(web_query)
         xbmc_webserver_enabled = result['result']['value']
-        if not xbmc_webserver_enabled:
-            xbmcgui.Dialog().ok(translate_string(30294), translate_string(30295))
-            return
+        # if not xbmc_webserver_enabled:
+        #     xbmcgui.Dialog().ok(translate_string(30294), translate_string(30295))
+        #     return
 
         params = {"properties": ["url"]}
         json_result = JsonRpc('Textures.GetTextures').execute(params)
