@@ -9,7 +9,6 @@ import re
 from random import shuffle
 
 import xbmcvfs
-import xbmc
 import xbmcaddon
 import requests
 from six.moves.BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
@@ -192,18 +191,33 @@ class HttpImageServerThread(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
         self.keep_running = True
+        # Initialised in run(); kept here so stop() is safe even if the
+        # bind in run() failed and self.server was never assigned.
+        self.server = None
 
     def stop(self):
         log.debug("HttpImageServerThread:stop called")
         self.keep_running = False
-        self.server.shutdown()
+        if self.server is not None:
+            # shutdown() unblocks serve_forever(); server_close() releases the
+            # listening socket so the port is free for the next launch. Without
+            # server_close() a force-kill leaves the port bound and the next
+            # start fails to bind (Address already in use).
+            self.server.shutdown()
+            self.server.server_close()
 
     def run(self):
         log.debug("HttpImageServerThread:started")
-        self.server = HTTPServer(('', PORT_NUMBER), HttpImageHandler)
+        try:
+            self.server = HTTPServer(('', PORT_NUMBER), HttpImageHandler)
+        except OSError as err:
+            log.error(
+                "HttpImageServerThread: failed to bind port {0}: {1}".format(
+                    PORT_NUMBER, err)
+            )
+            return
 
-        while self.keep_running:
-            self.server.serve_forever()
-            xbmc.sleep(1000)
+        # serve_forever() blocks until stop() calls server.shutdown()
+        self.server.serve_forever()
 
         log.debug("HttpImageServerThread:exiting")

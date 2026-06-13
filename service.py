@@ -35,7 +35,10 @@ home_window.clear_property("AccessToken")
 home_window.clear_property("Params")
 
 log = LazyLogger('service')
-monitor = xbmc.Monitor()
+# Dedicated Monitor for detecting Kodi shutdown/abort. Kept separate from the
+# `monitor = Service()` (xbmc.Player) assignment below so abort detection
+# survives for the whole service lifetime.
+abort_monitor = xbmc.Monitor()
 
 addon_version = settings.getAddonInfo('version')
 try:
@@ -53,7 +56,7 @@ except Exception as error:
 
 # wait for 10 seconds for the Kodi splash screen to close
 i = 0
-while not monitor.abortRequested():
+while not abort_monitor.abortRequested():
     if i == 100 or not xbmc.getCondVisibility("Window.IsVisible(startup)"):
         break
     i += 1
@@ -119,7 +122,7 @@ prev_user = home_window.get_property("user_name")
 first_run = True
 home_window.set_property('exit', 'False')
 
-while home_window.get_property('exit') == 'False':
+while home_window.get_property('exit') == 'False' and not abort_monitor.abortRequested():
     log.debug(">>>>>> Service is running 1 {}".format(home_window.get_property('updatesub')))
     try:
         if xbmc.Player().isPlaying():
@@ -191,7 +194,11 @@ while home_window.get_property('exit') == 'False':
         log.error("{0}".format(traceback.format_exc()))
 
     first_run = False
-    xbmc.sleep(1000)
+    # waitForAbort returns True immediately on Kodi shutdown, so we react to
+    # abort right away instead of sleeping through it. Falls back to the
+    # System.OnQuit -> 'exit' property trigger handled by the loop condition.
+    if abort_monitor.waitForAbort(1):
+        break
 
 image_server.stop()
 

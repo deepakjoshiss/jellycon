@@ -4,7 +4,6 @@ from __future__ import (
 
 import json
 import threading
-import time
 
 import xbmc
 import xbmcaddon
@@ -236,9 +235,10 @@ class WebSocketClient(threading.Thread):
                 xbmc.executebuiltin(builtin[command])
 
     def on_open(self, ws):
-        # Wait to make sure previous keepalive cycle has ended
+        # Wait to make sure previous keepalive cycle has ended. Use waitForAbort
+        # (not time.sleep) so a Kodi shutdown during this wait exits immediately.
         if self.websocket_error:
-            time.sleep(30)
+            self.monitor.waitForAbort(30)
             self.websocket_error = False
         log.debug("Connected")
         self.api.post_capabilities()
@@ -277,7 +277,11 @@ class WebSocketClient(threading.Thread):
 
         while not self.monitor.abortRequested():
 
-            self._client.run_forever(reconnect=30)
+            # No reconnect= here on purpose: with reconnect set, run_forever()
+            # stays in an internal auto-reconnect loop that close() cannot
+            # reliably break, so the thread outlives Kodi's 5s shutdown budget.
+            # Reconnection is handled below by the abort-aware waitForAbort(20).
+            self._client.run_forever()
 
             if self._stop_websocket:
                 break
@@ -293,6 +297,11 @@ class WebSocketClient(threading.Thread):
     def stop_client(self):
 
         self._stop_websocket = True
+        # Cancel any pending keepalive timer so its 30s non-daemon thread does
+        # not keep the process alive past Kodi's 5s shutdown budget.
+        keepalive_timer = getattr(self, '_keepalive_timer', None)
+        if keepalive_timer is not None:
+            keepalive_timer.cancel()
         if self._client is not None:
             self._client.close()
         log.debug("Stopping WebSocket (stop_client called)")
@@ -312,6 +321,9 @@ class WebSocketClient(threading.Thread):
         self.schedule_keepalive(ws)
 
     def schedule_keepalive(self, ws):
-        # Schedule a keepalive message in 30 seconds
+        # Schedule a keepalive message in 30 seconds. Tracked on self so
+        # stop_client() can cancel it; otherwise its 30s timer thread keeps the
+        # process alive past Kodi's 5s shutdown budget.
         timer = threading.Timer(30, self.send_keepalive, kwargs={'ws': ws})
+        self._keepalive_timer = timer
         timer.start()

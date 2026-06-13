@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(LOG=\"$HOME/Library/Logs/kodi.log\"; sed -n '518,535p' \"$LOG\" | grep -iE \"Address|in use|errno|OSError|bind|Error\" | head)",
+      "Read(//Users/deepak/Library/Logs/**)",
+      "Bash(python3 -m py_compile service.py resources/lib/image_server.py resources/lib/websocket_client.py)",
+      "Bash(git --no-pager diff service.py resources/lib/image_server.py resources/lib/websocket_client.py)"
+    ]
+  }
+}
