@@ -300,10 +300,25 @@ def check_server(force=False, change_user=False, notify=False):
                 settings.setSetting('username', selected_user_name)
                 user_details = load_user_details()
 
-                if not user_details:
-                    # Ask for password if user has one
+                # If we have a saved token, make sure it's still valid on the
+                # server.  A token that expired or was revoked server-side must
+                # not be reused, otherwise the user can never log in again.
+                had_saved_token = bool(user_details and user_details.get('token'))
+                token_valid = False
+                if had_saved_token:
+                    token_valid = api.is_authenticated()
+                    if not token_valid:
+                        log.info('Saved token for user {} is no longer valid, re-authenticating'.format(selected_user_name))
+
+                if not token_valid:
+                    # Ask for password if the user has one. We can't rely on the
+                    # "secure" flag for users hidden from the login screen (they
+                    # aren't in /Users/Public, so HasPassword is unknown), so if
+                    # we're re-authenticating a previously-saved user always
+                    # prompt - the password can be left blank for passwordless
+                    # accounts.
                     password = ''
-                    if secured and not user_details.get('token'):
+                    if secured or had_saved_token:
                         kb = xbmc.Keyboard()
                         kb.setHeading(translate_string(30006))
                         kb.setHiddenInput(True)
@@ -329,10 +344,26 @@ def check_server(force=False, change_user=False, notify=False):
                 token = user_details.get('token')
                 user_id = user_details.get('user_id')
             save_user_details(selected_user_name, user_id, token)
-            xbmc.executebuiltin("ActivateWindow(Home)")
+
+            # Show a success toast.
+            xbmcgui.Dialog().notification(
+                __addon_name__,
+                "Logged in as {}".format(selected_user_name),
+                icon=xbmcgui.NOTIFICATION_INFO
+            )
+
+            # Navigation must run AFTER the login keyboard has fully closed.
+            # Calling ActivateWindow now is refused ("active modal dialogs")
+            # because the modal is still tearing down - that is why the skin
+            # doesn't return Home. Schedule it with AlarmClock so it fires on
+            # the main thread a moment later, once this (directory) call has
+            # returned and the keyboard is gone. This is non-blocking (no
+            # "Please wait" hang) and avoids the GUI reentrancy that crashed
+            # Kodi earlier. ReloadSkin runs a little later, on Home.
+            xbmc.executebuiltin('AlarmClock(jellycon_home,ActivateWindow(Home),00:01,silent)')
             if "estuary_jellycon" in xbmc.getSkinDir():
-                xbmc.executebuiltin("SetFocus(9000, 0, absolute)")
-            xbmc.executebuiltin("ReloadSkin()")
+                xbmc.executebuiltin('AlarmClock(jellycon_focus,SetFocus(9000),00:02,silent)')
+            xbmc.executebuiltin('AlarmClock(jellycon_reload,ReloadSkin,00:03,silent)')
 
 
 def user_select(api, current_username, code):

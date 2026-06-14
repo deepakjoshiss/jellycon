@@ -84,21 +84,66 @@ class API:
             pass
 
     def authenticate(self, auth_data):
-        # Always force create fresh headers during authentication
-        self.create_headers(True)
-        response = self.post('/Users/AuthenticateByName', auth_data)
+        # The authentication request must NOT carry a token. A stale/expired
+        # token in the Authorization header is rejected by the server (401)
+        # even on this anonymous endpoint, which would otherwise make it
+        # impossible to log back in once a token expires. Drop any existing
+        # token and build a token-free header for this request.
+        self.token = None
+        self.create_headers(force=True, include_token=False)
+
+        if not self.server:
+            self.settings = xbmcaddon.Addon()
+            self.server = self.settings.getSetting('server_address')
+
+        url = '{}/Users/AuthenticateByName'.format(self.server)
+        try:
+            r = requests.post(url, json=auth_data, headers=self.headers, verify=self.verify_cert, timeout=5)
+            try:
+                response = json.loads(r.text)
+            except ValueError:
+                response = r.json()
+        except Exception:
+            response = {}
+
         token = response.get('AccessToken')
         if token:
             self.token = token
             self.user_id = response.get('User').get('Id')
-            # Create headers again to include auth token
-            self.create_headers()
+            # Append the freshly issued token to the current header so the rest
+            # of this session uses it (auth.json is updated by the caller).
+            self.headers['Authorization'] += ", Token={}".format(token)
             return response
         else:
             log.error('Unable to authenticate to Jellyfin server')
             return {}
 
-    def create_headers(self, force=False):
+    def is_authenticated(self):
+        '''
+        Check whether the currently held token is still valid on the server.
+
+        Returns True only on an authenticated (200) response.  A token that
+        has expired or been revoked server-side returns 401, in which case we
+        report False so the caller can prompt for credentials and re-login.
+        '''
+        # Pick up the saved token for the current user and build fresh headers
+        self.create_headers(True)
+
+        if not self.token:
+            return False
+
+        if not self.server:
+            self.settings = xbmcaddon.Addon()
+            self.server = self.settings.getSetting('server_address')
+
+        url = '{}/Users/Me'.format(self.server)
+        try:
+            r = requests.get(url, headers=self.headers, verify=self.verify_cert, timeout=5)
+            return r.status_code == 200
+        except Exception:
+            return False
+
+    def create_headers(self, force=False, include_token=True):
 
         # If the headers already exist with an auth token, return unless we're regenerating
         if self.headers and 'Authorization' in self.headers.get('Authorization', '') and force is False:
@@ -124,16 +169,19 @@ class API:
 
         headers['Authorization'] = authorization
 
-        # If we have a valid token, ensure it's included in the headers unless we're regenerating
-        if self.token and force is False:
-            headers['Authorization'] += ", Token={}".format(self.token)
-        else:
-            # Check for updated credentials since initialization
-            user_details = load_user_details()
-            token = user_details.get('token')
-            if token:
-                self.token = token
+        # Skip the token entirely when explicitly requested (e.g. the
+        # authentication request, which must be sent without a token).
+        if include_token:
+            # If we have a valid token, ensure it's included in the headers unless we're regenerating
+            if self.token and force is False:
                 headers['Authorization'] += ", Token={}".format(self.token)
+            else:
+                # Check for updated credentials since initialization
+                user_details = load_user_details()
+                token = user_details.get('token')
+                if token:
+                    self.token = token
+                    headers['Authorization'] += ", Token={}".format(self.token)
 
         # Kodi doesn't support br compression, exclude it
         headers['Accept-Encoding'] = 'gzip, deflate, zstd'

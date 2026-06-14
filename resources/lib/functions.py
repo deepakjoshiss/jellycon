@@ -95,6 +95,16 @@ def main_entry_point():
         show_content(new_params)
     elif mode == "CHANGE_USER":
         check_server(change_user=True, notify=False)
+        # CHANGE_USER performs an action and navigates itself; it returns no
+        # listing. End the directory cleanly so Kodi doesn't log
+        # "GetDirectory failed" and play an error sound. Guard the handle as
+        # this mode can also be invoked via RunScript (handle 0/-1).
+        try:
+            handle = int(sys.argv[1])
+            if handle > 0:
+                xbmcplugin.endOfDirectory(handle, succeeded=False)
+        except (ValueError, IndexError):
+            pass
     elif mode == "CACHE_ARTWORK":
         CacheArtwork().cache_artwork_interactive()
     elif mode == "DETECT_SERVER":
