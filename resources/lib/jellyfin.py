@@ -174,7 +174,7 @@ class API:
         if include_token:
             # If we have a valid token, ensure it's included in the headers unless we're regenerating
             if self.token and force is False:
-                headers['Authorization'] += ", Token={}".format(self.token)
+                headers['Authorization'] += ', Token="{}"'.format(self.token)
             else:
                 # Check for updated credentials since initialization
                 user_details = load_user_details()
@@ -183,8 +183,8 @@ class API:
                     self.token = token
                     headers['Authorization'] += ", Token={}".format(self.token)
 
-        # Kodi doesn't support br compression, exclude it
-        headers['Accept-Encoding'] = 'gzip, deflate, zstd'
+        # Kodi doesn't support br or zstd compression, exclude them
+        headers['Accept-Encoding'] = 'gzip, deflate'
 
         # Make headers available to api calls
         self.headers = headers

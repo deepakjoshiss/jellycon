@@ -1,6 +1,6 @@
 msgid ""
 msgstr ""
-"PO-Revision-Date: 2026-05-26 03:49+0000\n"
+"PO-Revision-Date: 2026-07-17 12:56+0000\n"
 "Last-Translator: Ekaterine Papava <papava.e@gtu.ge>\n"
 "Language-Team: Georgian <https://translate.jellyfin.org/projects/jellycon/"
 "jellycon/ka/>\n"
@@ -1224,3 +1224,20 @@ msgstr "კომბინაცია ჩანაცვლების ნა�
 msgctxt "#30453"
 msgid "Hide number of items to show on entry title"
 msgstr "ელემენტების რაოდენობის დამალვა ჩანაწერის სათაურში"
+
+msgctxt "#30679"
+msgid "Quick Connect: Enter code {} on another device to authorize"
+msgstr ""
+"სწრაფი დაკავშირება: ავტორიზაციისთვის სხვა მოწყობილობაზე შეიყვანეთ კოდი {}"
+
+msgctxt "#30680"
+msgid "Waiting for authorization... ({}/{})"
+msgstr "ავტორიზაციის მოლოდინი... ({}/{})"
+
+msgctxt "#30681"
+msgid "Quick Connect authentication failed. Please try again."
+msgstr "სწრაფი დაკავშირების ავთენტიკაცია ჩავარდა. კიდევ სცადეთ."
+
+msgctxt "#30682"
+msgid "Quick Connect timed out. Please try again."
+msgstr "სწრაფი დაკავშირების მოლოდინის ვადა ამოიწურა. კიდევ სცადეთ."
