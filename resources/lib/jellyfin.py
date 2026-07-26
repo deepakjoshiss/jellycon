@@ -181,7 +181,7 @@ class API:
                 token = user_details.get('token')
                 if token:
                     self.token = token
-                    headers['Authorization'] += ", Token={}".format(self.token)
+                    headers['Authorization'] += ', Token="{}"'.format(self.token)
 
         # Kodi doesn't support br or zstd compression, exclude them
         headers['Accept-Encoding'] = 'gzip, deflate'
