@@ -555,19 +555,19 @@ def get_widget_content(handle, params):
         url_params["Ids"] = home_window.get_property("random-all")
 
     elif widget_type == "recent_all":
-        xbmcplugin.setContent(handle, 'movies')
+        xbmcplugin.setContent(handle, 'videos')
         url_verb = '/Users/{}/Items/Latest'.format(user_id)
         url_params["GroupItems"] = True
         url_params["Recursive"] = True
         url_params["SortBy"] = "DateCreated"
         url_params["SortOrder"] = "Descending"
-        url_params["Limit"] = 45
+        url_params["Limit"] = 10
         url_params["Filters"] = "IsNotFolder"
         url_params["Fields"] = get_default_filters()
         if hide_watched:
             url_params["IsPlayed"] = False
         url_params["IsVirtualUnaired"] = False
-        url_params["IncludeItemTypes"] = "Episode, Movie"
+        # url_params["IncludeItemTypes"] = "Video"
         url_params["ImageTypeLimit"] = 1
 
     elif widget_type == "favorites_all":
